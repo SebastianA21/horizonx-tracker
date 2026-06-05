@@ -453,14 +453,15 @@ def page_run_detail(store: SQLiteStore) -> None:
 
     st.markdown(_run_header_card(run, run_id), unsafe_allow_html=True)
 
-    # Metric summary cards — last value per key, up to 4
-    # Prefer strategy metrics (static_*, vol*) over benchmark (spy_*)
+    # Metric summary cards — single-point metrics only, strategy before benchmark
     if metrics:
-        mdf  = pd.DataFrame(metrics)
-        last = mdf.sort_values("step").groupby("key")["value"].last()
-        keys = last.index.tolist()
-        priority = [k for k in keys if not k.startswith("spy_")]
-        fallback = [k for k in keys if k.startswith("spy_")]
+        mdf    = pd.DataFrame(metrics)
+        counts = mdf.groupby("key")["step"].count()
+        last   = mdf.sort_values("step").groupby("key")["value"].last()
+        # Only single-point (summary) metrics belong in cards
+        summary = [k for k in last.index if counts[k] == 1]
+        priority = [k for k in summary if not k.startswith("spy_")]
+        fallback = [k for k in summary if k.startswith("spy_")]
         top  = (priority + fallback)[:4]
         cols = st.columns(len(top))
         for i, key in enumerate(top):
